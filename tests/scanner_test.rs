@@ -5,8 +5,7 @@ use std::path::PathBuf;
 use dupfind::cli::CliArgs;
 use dupfind::scanner;
 
-/// Create a temporary directory with a few files, run the scanner,
-/// then clean up.
+/// 创建临时目录并写入测试文件
 fn setup_temp_dir(files: &[(&str, &[u8])]) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("dupfind_test_{}", uuid()));
     fs::create_dir_all(&dir).unwrap();
@@ -45,21 +44,24 @@ fn test_scan_all_files() {
         exclude: vec![],
         output: None,
         delete: None,
+        dry_run: false,
+        use_trash: false,
+        table: false,
+        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
+        config: None,
+        verbose: 0,
     };
 
-    let files = scanner::scan(&args).unwrap();
+    let (files, summary) = scanner::scan(&args).unwrap();
     assert_eq!(files.len(), 3);
+    assert_eq!(summary.total_files, 3);
 
-    // Cleanup.
     let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
 fn test_min_size_filter() {
-    let dir = setup_temp_dir(&[
-        ("small.txt", b"hi"),          // 2 bytes
-        ("large.txt", b"hello world"), // 11 bytes
-    ]);
+    let dir = setup_temp_dir(&[("small.txt", b"hi"), ("large.txt", b"hello world")]);
 
     let args = CliArgs {
         path: dir.clone(),
@@ -68,9 +70,15 @@ fn test_min_size_filter() {
         exclude: vec![],
         output: None,
         delete: None,
+        dry_run: false,
+        use_trash: false,
+        table: false,
+        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
+        config: None,
+        verbose: 0,
     };
 
-    let files = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&args).unwrap();
     assert_eq!(files.len(), 1);
     assert!(files[0].path.ends_with("large.txt"));
 
@@ -92,9 +100,15 @@ fn test_extension_filter() {
         exclude: vec![],
         output: None,
         delete: None,
+        dry_run: false,
+        use_trash: false,
+        table: false,
+        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
+        config: None,
+        verbose: 0,
     };
 
-    let files = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&args).unwrap();
     assert_eq!(files.len(), 2);
     let names: Vec<String> = files
         .iter()
@@ -121,9 +135,15 @@ fn test_exclude_filter() {
         exclude: vec!["node_modules".into(), "target".into()],
         output: None,
         delete: None,
+        dry_run: false,
+        use_trash: false,
+        table: false,
+        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
+        config: None,
+        verbose: 0,
     };
 
-    let files = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&args).unwrap();
     assert_eq!(files.len(), 1);
     assert!(files[0].path.ends_with("main.rs"));
 

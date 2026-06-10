@@ -11,7 +11,7 @@ impl Reporter for CsvReporter {
         let mut wtr = csv::Writer::from_path(output)?;
 
         // Header row.
-        wtr.write_record(&["group_index", "hash", "size", "file_path"])?;
+        wtr.write_record(["group_index", "hash", "size", "file_path"])?;
 
         for (gi, group) in groups.iter().enumerate() {
             for file in &group.files {

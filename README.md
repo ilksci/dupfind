@@ -1,23 +1,27 @@
 # 🔍 dupfind
 
-> 一个用 Rust 编写的本地文件重复查找与清理工具
+> 高性能重复文件查找与清理工具，用 Rust 编写
 
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## 📖 项目简介
+## 📖 简介
 
-`dupfind` 是一个高性能的命令行工具，用于扫描本地目录、识别重复文件并支持交互式清理。
-
-现有的重复文件查找工具（如 `fdupes`、`dupeGuru`）大多以 C/Python 实现，`dupfind` 探索用 Rust 实现同类工具的可行性，在保证安全性的同时通过多线程并行 Hash 计算大幅提升扫描速度。
+`dupfind` 是一个命令行工具，用于扫描本地目录、识别重复文件并支持安全清理。
 
 **核心功能：**
 
-- 递归扫描指定目录，支持过滤规则（文件大小、扩展名、路径）
-- 使用 SHA-256 对文件内容进行 Hash，精准识别重复文件组
-- 多线程并行计算，充分利用多核 CPU
+- 递归扫描目录，支持过滤规则（大小、扩展名、路径排除）
+- **三级去重策略**：大小分桶 → 前缀哈希（4 KiB）→ 完整哈希
+- 多算法支持：**BLAKE3**（默认，快速）和 **SHA-256**（密码学安全）
+- 基于 `rayon` 的并行哈希计算，充分利用多核 CPU
 - 交互式 TUI 界面，支持逐组确认删除
-- 导出重复报告（JSON / CSV）
+- **安全删除**：`--dry-run` 预览模式 + `--trash` 回收站支持
+- 导出报告：JSON / CSV / **HTML**（自包含，浏览器可查看）
+- 终端表格直出（`--table`）
+- 符号链接检测与跳过
+- 配置文件支持（`.dupfind.toml`）
+- 结构化日志（`-v` / `-vv`）
 
 ## 🏗️ 项目结构
 
@@ -26,125 +30,144 @@ dupfind/
 ├── Cargo.toml
 ├── README.md
 ├── src/
-│   ├── main.rs           # 程序入口，CLI 参数解析
-│   ├── cli.rs            # 命令行接口定义（基于 clap）
+│   ├── main.rs              # 程序入口
+│   ├── lib.rs               # 顶层调度（五阶段流水线）
+│   ├── cli.rs               # 命令行参数（clap derive）
+│   ├── config.rs            # 配置文件加载（.dupfind.toml）
+│   ├── error.rs             # 统一错误类型（thiserror）
+│   ├── table.rs             # 终端表格输出（tabled）
 │   ├── scanner/
-│   │   ├── mod.rs        # 目录递归扫描，收集 FileInfo
-│   │   └── filter.rs     # 扫描过滤规则（大小、扩展名、排除路径）
+│   │   ├── mod.rs           # 递归扫描 + 符号链接检测
+│   │   └── filter.rs        # 过滤规则（大小/扩展名/路径）
 │   ├── hasher/
-│   │   ├── mod.rs        # 文件 Hash 计算与重复分组
-│   │   └── parallel.rs   # 基于 rayon 的并行 Hash 计算
+│   │   ├── mod.rs           # 三级去重策略调度
+│   │   ├── algorithms.rs    # HashAlgorithm trait + SHA256/BLAKE3 实现
+│   │   └── parallel.rs      # rayon 并行 + channel 流水线（演示用）
 │   ├── reporter/
-│   │   ├── mod.rs        # Reporter trait 定义
-│   │   ├── json.rs       # JSON 格式报告输出
-│   │   └── csv.rs        # CSV 格式报告输出
-│   ├── cleaner/
-│   │   ├── mod.rs        # 删除策略与执行
-│   │   └── interactive.rs# TUI 交互式确认界面
-│   └── error.rs          # 统一错误类型定义
-└── tests/
-    ├── scanner_test.rs
-    ├── hasher_test.rs
-    └── reporter_test.rs
+│   │   ├── mod.rs           # Reporter trait + 格式调度
+│   │   ├── json.rs          # JSON 报告
+│   │   ├── csv.rs           # CSV 报告
+│   │   └── html.rs          # HTML 自包含报告（新增）
+│   └── cleaner/
+│       ├── mod.rs           # 清理策略 + dry-run + trash
+│       └── interactive.rs   # TUI 交互式界面
+└── tests/                   # 集成测试
 ```
 
 ## 🎯 设计说明
 
-### 模块职责
+### 三级去重策略
 
-| 模块 | 职责 |
-|------|------|
-| `cli` | 解析命令行参数，构建运行配置 |
-| `scanner` | 递归遍历文件系统，收集文件元信息 |
-| `hasher` | 计算文件 Hash，将相同 Hash 的文件归为一组 |
-| `reporter` | 将重复文件组序列化为报告文件 |
-| `cleaner` | 根据用户策略执行文件删除操作 |
-| `error` | 统一的错误类型，贯穿各模块 |
+```
+全部文件 → [阶段1] 大小分桶（唯一大小丢弃）
+       → [阶段2] 前缀哈希（首 4 KiB，SHA-256 碰撞检测）
+       → [阶段3] 完整哈希（BLAKE3 或 SHA-256 最终确认）
+       → 重复文件组
+```
 
-### 核心数据结构
+### 核心抽象
 
 ```rust
-// 文件信息
-pub struct FileInfo {
-    pub path: PathBuf,
-    pub size: u64,
-    pub hash: Option<String>,
+/// 哈希算法 trait — 便于 v3 扩展更多算法
+pub trait HashAlgorithm: Send + Sync {
+    fn hash(&self, reader: &mut dyn Read) -> io::Result<String>;
+    fn name(&self) -> &'static str;
 }
 
-// 重复文件组
-pub struct DuplicateGroup {
-    pub hash: String,
-    pub size: u64,
-    pub files: Vec<FileInfo>,
-}
-
-// 删除策略
-pub enum KeepStrategy {
-    Newest,       // 保留最新修改的文件
-    Oldest,       // 保留最早修改的文件
-    Shortest,     // 保留路径最短的文件
-    Interactive,  // 交互式手动选择
-}
-
-// 报告导出 trait
+/// 报告导出 trait
 pub trait Reporter {
     fn write(&self, groups: &[DuplicateGroup], output: &Path) -> Result<()>;
 }
+
+/// 清理配置
+pub struct CleanOptions {
+    pub dry_run: bool,    // 预览模式
+    pub use_trash: bool,  // 回收站模式
+}
 ```
 
-### 关键技术点
+### v2 新增特性（vs v1）
 
-**两阶段 Hash 策略**：先按文件大小粗筛（大小不同必不重复），再对相同大小的文件计算完整 SHA-256，避免对全部文件做 Hash，显著减少 IO 开销。
+| 特性 | 说明 |
+|------|------|
+| 三级去重 | 前缀哈希预筛选，减少完整哈希的 IO 开销 |
+| BLAKE3 | 多线程友好，比 SHA-256 快 5-10x |
+| HashAlgorithm trait | 算法可插拔，v3 可加 XXHash/MD5 |
+| dry-run | 安全预览，只显示不删除 |
+| trash | 移入系统回收站，可恢复 |
+| HTML 报告 | 自包含 HTML，浏览器可直接查看 |
+| 终端表格 | `-t` 直接在终端打印结果 |
+| 配置文件 | `.dupfind.toml` 支持 |
+| 日志系统 | `-v`/`-vv` + `RUST_LOG` 环境变量 |
+| 符号链接检测 | 自动跳过并报告 |
+| channel 流水线 | 演示 `thread` + `mpsc` + `Arc<Mutex>` |
+| 新保留策略 | Largest / Smallest |
 
-**并行计算**：使用 `rayon` 对文件列表并行计算 Hash，在多核机器上线性提升速度。
+### v3 预留空间
 
-**错误处理**：所有 IO 操作均返回 `Result<T, DupfindError>`，通过 `?` 传播，不使用 `unwrap`。
+- Workspace 拆分（core / scanner / hasher / reporter / cleaner / cli）
+- ratatui 仪表盘升级
+- tokio 异步 IO
+- 本地 Web 服务器（`--serve`）
+- 相似文件/图片感知哈希检测
+- 文件类型魔术字节识别
+- CI/CD 配置
+- criterion 基准测试 + proptest 属性测试
 
 ## 🚀 编译与运行
 
 **环境要求：** Rust 1.75+
 
 ```bash
-# 克隆项目
-git clone https://github.com/ilksci/dupfind.git
+git clone git@github.com:ilksci/dupfind.git
 cd dupfind
-
-# 编译
 cargo build --release
 
-# 运行
+# 基础用法
 ./target/release/dupfind --path ~/Downloads
 
 # 常用参数
-dupfind --path <目录>           # 扫描指定目录
-        --min-size 1MB          # 忽略小于指定大小的文件
-        --ext jpg,png,mp4       # 只扫描指定扩展名
-        --output report.json    # 导出 JSON 报告
-        --output report.csv     # 导出 CSV 报告
-        --delete interactive    # 交互式删除
-        --delete keep-newest    # 自动保留最新文件
+dupfind --path <目录>            # 扫描目录
+        --min-size 1MB           # 最小文件大小过滤
+        --ext jpg,png,mp4        # 只扫描指定扩展名
+        --exclude node_modules   # 排除路径
+        --hash-algo sha256       # 选择哈希算法（默认 blake3）
+        --output report.json     # 导出报告（支持 json/csv/html）
+        --table                  # 终端表格输出
+        --delete interactive     # 交互式删除
+        --delete keep-newest     # 自动保留最新文件
+        --delete keep-largest    # 自动保留最大文件
+        --dry-run                # 安全预览（不实际删除）
+        --trash                  # 移入回收站
+        -v                       # 详细日志
 ```
 
 ## 🧪 测试
 
 ```bash
-cargo test          # 运行所有测试
-cargo test scanner  # 只运行 scanner 模块测试
+cargo test          # 全部测试（21 个）
+cargo test scanner  # 扫描模块测试
+cargo test hasher   # 哈希模块测试
+cargo test reporter # 报告模块测试
 ```
 
-## 📦 依赖
+## 📦 主要依赖
 
 | crate | 用途 |
 |-------|------|
 | `clap` | 命令行参数解析 |
-| `rayon` | 数据并行（多线程 Hash） |
-| `sha2` | SHA-256 Hash 计算 |
+| `rayon` | 数据并行哈希 |
+| `sha2` / `blake3` | 哈希算法 |
 | `serde` / `serde_json` | JSON 序列化 |
-| `csv` | CSV 报告导出 |
+| `csv` | CSV 报告 |
 | `walkdir` | 递归目录遍历 |
-| `indicatif` | 进度条显示 |
-| `crossterm` | 跨平台终端控制（TUI） |
-| `thiserror` | 错误类型定义 |
+| `indicatif` | 进度条 |
+| `crossterm` | 跨平台 TUI |
+| `thiserror` | 错误类型派生 |
+| `toml` | 配置文件解析 |
+| `log` + `env_logger` | 结构化日志 |
+| `trash` | 系统回收站 |
+| `tabled` | 终端表格 |
 
 ## 📄 License
 

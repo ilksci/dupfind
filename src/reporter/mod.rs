@@ -1,4 +1,5 @@
 pub mod csv;
+pub mod html;
 pub mod json;
 
 use std::path::Path;
@@ -6,27 +7,28 @@ use std::path::Path;
 use crate::error::{DupfindError, Result};
 use crate::hasher::DuplicateGroup;
 
-/// Dispatch to the correct reporter based on the output file extension.
+/// 根据输出文件的扩展名调度到对应的报告器
 ///
-/// - `.json` → JSON reporter
-/// - `.csv`  → CSV reporter
-/// - anything else → error
+/// - `.json` → JSON
+/// - `.csv`  → CSV
+/// - `.html` → HTML
 pub fn export(groups: &[DuplicateGroup], output: &Path) -> Result<()> {
     match output.extension().and_then(|e| e.to_str()) {
         Some("json") => json::JsonReporter.write(groups, output),
         Some("csv") => csv::CsvReporter.write(groups, output),
+        Some("html") | Some("htm") => html::HtmlReporter.write(groups, output),
         Some(ext) => Err(DupfindError::Other(format!(
-            "Unsupported report format '.{}'. Use '.json' or '.csv'.",
+            "不支持的报告格式 '.{}'，请使用 .json / .csv / .html",
             ext
         ))),
         None => Err(DupfindError::Other(
-            "Output file must have a .json or .csv extension.".into(),
+            "输出文件必须有扩展名（.json / .csv / .html）".into(),
         )),
     }
 }
 
-/// Trait for exporting duplicate reports.
+/// 报告导出 trait
 pub trait Reporter {
-    /// Serialise `groups` and write the result to `output`.
+    /// 将重复文件组序列化并写入 output
     fn write(&self, groups: &[DuplicateGroup], output: &Path) -> Result<()>;
 }

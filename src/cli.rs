@@ -1,14 +1,15 @@
 use std::path::PathBuf;
+use std::result::Result as StdResult;
 
 use clap::{Parser, ValueEnum};
 
 use crate::cleaner::KeepStrategy;
 
-/// A fast duplicate file finder and cleaner.
+/// 高性能重复文件查找与清理工具
 #[derive(Parser, Debug)]
-#[command(name = "dupfind", version, about = "Find and clean duplicate files", long_about = None)]
+#[command(name = "dupfind", version, about = "查找并清理重复文件", long_about = None)]
 pub struct CliArgs {
-    /// Directory path to scan for duplicates
+    /// 要扫描的目录路径
     #[arg(
         short = 'p',
         long = "path",
@@ -17,38 +18,66 @@ pub struct CliArgs {
     )]
     pub path: PathBuf,
 
-    /// Minimum file size to consider (e.g. "1MB", "500KB", "2GB")
+    /// 最小文件大小，小于此值的文件将被忽略（如 "1MB", "500KB"）
     #[arg(short = 'm', long = "min-size", value_parser = parse_size)]
     pub min_size: Option<u64>,
 
-    /// Comma-separated list of file extensions to include (e.g. "jpg,png,mp4")
+    /// 只扫描指定扩展名的文件，逗号分隔（如 "jpg,png,mp4"）
     #[arg(short = 'e', long = "ext", value_delimiter = ',')]
     pub extensions: Vec<String>,
 
-    /// Exclude paths matching these patterns
+    /// 排除路径中包含这些字符串的文件/目录
     #[arg(short = 'x', long = "exclude")]
     pub exclude: Vec<String>,
 
-    /// Export duplicate report to file (JSON or CSV determined by extension)
+    /// 导出重复文件报告（支持 .json / .csv / .html）
     #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
 
-    /// Delete strategy for handling duplicates
+    /// 删除策略
     #[arg(short = 'd', long = "delete", value_enum)]
     pub delete: Option<DeleteStrategyArg>,
+
+    /// 安全预览模式：只显示将要删除的文件，不实际删除
+    #[arg(long = "dry-run")]
+    pub dry_run: bool,
+
+    /// 移动到系统回收站而非永久删除
+    #[arg(long = "trash")]
+    pub use_trash: bool,
+
+    /// 以表格形式在终端直接打印重复文件组
+    #[arg(short = 't', long = "table")]
+    pub table: bool,
+
+    /// 哈希算法选择
+    #[arg(long = "hash-algo", value_enum, default_value_t = HashAlgoArg::Blake3)]
+    pub hash_algo: HashAlgoArg,
+
+    /// 配置文件路径（默认为当前目录 .dupfind.toml）
+    #[arg(long = "config")]
+    pub config: Option<PathBuf>,
+
+    /// 详细输出级别（-v 或 -vv）
+    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    pub verbose: u8,
 }
 
-/// CLI-facing delete strategy enum (maps to KeepStrategy).
+/// CLI 删除策略枚举
 #[derive(ValueEnum, Clone, Debug)]
 pub enum DeleteStrategyArg {
-    /// Interactively choose which files to keep
+    /// 交互式逐组选择
     Interactive,
-    /// Automatically keep the newest file in each group
+    /// 自动保留每组中修改时间最新的文件
     KeepNewest,
-    /// Automatically keep the oldest file in each group
+    /// 自动保留每组中修改时间最早的文件
     KeepOldest,
-    /// Automatically keep the file with the shortest path
+    /// 自动保留每组中路径最短的文件
     KeepShortest,
+    /// 自动保留每组中体积最大的文件
+    KeepLargest,
+    /// 自动保留每组中体积最小的文件
+    KeepSmallest,
 }
 
 impl From<DeleteStrategyArg> for KeepStrategy {
@@ -58,26 +87,35 @@ impl From<DeleteStrategyArg> for KeepStrategy {
             DeleteStrategyArg::KeepNewest => KeepStrategy::Newest,
             DeleteStrategyArg::KeepOldest => KeepStrategy::Oldest,
             DeleteStrategyArg::KeepShortest => KeepStrategy::Shortest,
+            DeleteStrategyArg::KeepLargest => KeepStrategy::Largest,
+            DeleteStrategyArg::KeepSmallest => KeepStrategy::Smallest,
         }
     }
 }
 
-/// Parse the CLI arguments.
+/// CLI 哈希算法枚举
+#[derive(ValueEnum, Clone, Debug, Default)]
+pub enum HashAlgoArg {
+    /// BLAKE3 — 速度更快，适合大文件（默认）
+    #[default]
+    Blake3,
+    /// SHA-256 — 密码学安全，兼容性更好
+    Sha256,
+}
+
+/// 解析命令行参数
 pub fn parse_args() -> CliArgs {
     CliArgs::parse()
 }
 
-/// Parse human-readable file sizes like "1MB", "500KB", "2GB".
+/// 解析人类可读的文件大小（如 "1MB", "500KB", "2GB"）
 ///
-/// Supports fractional values (e.g. "1.5GB" = 1_500_000_000).
-/// Recognised suffixes (case-insensitive):
+/// 支持小数（如 "1.5GB"）。支持的后缀（不区分大小写）：
 ///   B, KB, KiB, MB, MiB, GB, GiB, TB, TiB
-///
-/// Suffix-less values are treated as bytes.
-fn parse_size(raw: &str) -> std::result::Result<u64, String> {
+/// 不带后缀的值视为字节数。
+pub fn parse_size(raw: &str) -> StdResult<u64, String> {
     let raw = raw.trim().to_uppercase();
 
-    // Extract numeric part and optional suffix.
     let (num_str, multiplier): (&str, f64) = {
         if let Some(rest) = raw.strip_suffix("TIB") {
             (rest.trim(), 1_099_511_627_776.0)
@@ -104,11 +142,11 @@ fn parse_size(raw: &str) -> std::result::Result<u64, String> {
 
     let num: f64 = num_str
         .parse()
-        .map_err(|e| format!("Invalid size value '{}': {}", num_str, e))?;
+        .map_err(|e| format!("无效的数值 '{}': {}", num_str, e))?;
 
     let result = num * multiplier;
     if result > u64::MAX as f64 || result < 0.0 {
-        return Err(format!("Size value '{}' is too large", raw));
+        return Err(format!("数值过大 '{}'", raw));
     }
 
     Ok(result as u64)

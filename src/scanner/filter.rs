@@ -1,45 +1,44 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-/// Filtering rules applied during directory scanning.
-#[derive(Debug, Clone)]
+/// 扫描阶段的过滤规则
+#[derive(Debug, Clone, Default)]
 pub struct FilterConfig {
-    /// Minimum file size in bytes (files smaller than this are skipped).
+    /// 最小文件大小（字节）
     pub min_size: Option<u64>,
-
-    /// Allowed extensions (lowercase, without leading dot).
-    /// An empty vec means all extensions are allowed.
+    /// 允许的扩展名（小写，不含点），空 vec 表示允许全部
     pub extensions: Vec<String>,
-
-    /// Path fragments to exclude — any file whose path contains one of these
-    /// strings is skipped.
+    /// 路径排除模式，路径中包含任一字符串则跳过
     pub exclude_patterns: Vec<String>,
 }
 
 impl FilterConfig {
-    /// Returns `true` when a file passes every active filter.
+    /// 判定文件是否通过所有过滤规则
     pub fn matches(&self, path: &Path, size: u64) -> bool {
-        // Size check.
+        // 大小检查
         if let Some(min) = self.min_size {
             if size < min {
                 return false;
             }
         }
 
-        // Extension check.
+        // 扩展名检查
         if !self.extensions.is_empty() {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 let ext_lower = ext.to_lowercase();
-                if !self.extensions.iter().any(|e| e.as_str() == ext_lower.as_str()) {
+                if !self
+                    .extensions
+                    .iter()
+                    .any(|e| e.as_str() == ext_lower.as_str())
+                {
                     return false;
                 }
             } else {
-                // No extension at all → reject when extensions are specified.
-                return false;
+                return false; // 无扩展名则拒绝
             }
         }
 
-        // Exclude-pattern check.
+        // 路径排除检查
         if !self.exclude_patterns.is_empty() {
             let path_str = path.to_string_lossy();
             if self
@@ -52,16 +51,6 @@ impl FilterConfig {
         }
 
         true
-    }
-}
-
-impl Default for FilterConfig {
-    fn default() -> Self {
-        Self {
-            min_size: None,
-            extensions: Vec::new(),
-            exclude_patterns: Vec::new(),
-        }
     }
 }
 
@@ -98,7 +87,10 @@ mod tests {
             exclude_patterns: vec!["node_modules".into(), ".git".into()],
             ..Default::default()
         };
-        assert!(!cfg.matches(PathBuf::from("proj/node_modules/pkg/file.js").as_path(), 100));
+        assert!(!cfg.matches(
+            PathBuf::from("proj/node_modules/pkg/file.js").as_path(),
+            100
+        ));
         assert!(cfg.matches(Path::new("src/main.rs"), 100));
     }
 }

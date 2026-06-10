@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use dupfind::hasher;
+use dupfind::hasher::algorithms::Blake3Algo;
 use dupfind::scanner::FileInfo;
 
 fn setup_temp_files(files: &[(&str, &[u8])]) -> PathBuf {
@@ -30,21 +31,21 @@ fn setup_temp_files(files: &[(&str, &[u8])]) -> PathBuf {
 fn test_find_duplicates() {
     let dir = setup_temp_files(&[
         ("a.txt", b"hello world"),
-        ("b.txt", b"hello world"), // same content
+        ("b.txt", b"hello world"),
         ("c.txt", b"different!"),
-        ("d.txt", b"hello world"), // same content
+        ("d.txt", b"hello world"),
     ]);
 
     let files = vec![
-        FileInfo::new(dir.join("a.txt"), 11, Some(SystemTime::now())),
-        FileInfo::new(dir.join("b.txt"), 11, Some(SystemTime::now())),
-        FileInfo::new(dir.join("c.txt"), 10, Some(SystemTime::now())),
-        FileInfo::new(dir.join("d.txt"), 11, Some(SystemTime::now())),
+        FileInfo::new(dir.join("a.txt"), 11, Some(SystemTime::now()), false),
+        FileInfo::new(dir.join("b.txt"), 11, Some(SystemTime::now()), false),
+        FileInfo::new(dir.join("c.txt"), 10, Some(SystemTime::now()), false),
+        FileInfo::new(dir.join("d.txt"), 11, Some(SystemTime::now()), false),
     ];
 
-    let groups = hasher::find_duplicates(files).unwrap();
+    let algo = Blake3Algo;
+    let groups = hasher::find_duplicates(files, &algo).unwrap();
 
-    // Should find one group of 3 files (11 bytes, "hello world").
     assert_eq!(groups.len(), 1);
     assert_eq!(groups[0].files.len(), 3);
     assert_eq!(groups[0].size, 11);
@@ -54,19 +55,16 @@ fn test_find_duplicates() {
 
 #[test]
 fn test_no_duplicates() {
-    let dir = setup_temp_files(&[
-        ("x.txt", b"aaaa"),
-        ("y.txt", b"bbbb"),
-        ("z.txt", b"cccc"),
-    ]);
+    let dir = setup_temp_files(&[("x.txt", b"aaaa"), ("y.txt", b"bbbb"), ("z.txt", b"cccc")]);
 
     let files = vec![
-        FileInfo::new(dir.join("x.txt"), 4, None),
-        FileInfo::new(dir.join("y.txt"), 4, None),
-        FileInfo::new(dir.join("z.txt"), 4, None),
+        FileInfo::new(dir.join("x.txt"), 4, None, false),
+        FileInfo::new(dir.join("y.txt"), 4, None, false),
+        FileInfo::new(dir.join("z.txt"), 4, None, false),
     ];
 
-    let groups = hasher::find_duplicates(files).unwrap();
+    let algo = Blake3Algo;
+    let groups = hasher::find_duplicates(files, &algo).unwrap();
     assert!(groups.is_empty());
 
     let _ = fs::remove_dir_all(&dir);
@@ -74,19 +72,18 @@ fn test_no_duplicates() {
 
 #[test]
 fn test_unique_size_dropped() {
-    // Files with unique sizes are ignored before hashing.
     let dir = setup_temp_files(&[
         ("big.txt", b"this is a big file with more content"),
         ("small.txt", b"tiny"),
     ]);
 
     let files = vec![
-        FileInfo::new(dir.join("big.txt"), 37, None),
-        FileInfo::new(dir.join("small.txt"), 4, None),
+        FileInfo::new(dir.join("big.txt"), 37, None, false),
+        FileInfo::new(dir.join("small.txt"), 4, None, false),
     ];
 
-    let groups = hasher::find_duplicates(files).unwrap();
-    // Different sizes → no duplicate possible, even if content were the same.
+    let algo = Blake3Algo;
+    let groups = hasher::find_duplicates(files, &algo).unwrap();
     assert!(groups.is_empty());
 
     let _ = fs::remove_dir_all(&dir);
