@@ -103,7 +103,7 @@ pub struct CleanOptions {
 | channel 流水线 | 演示 `thread` + `mpsc` + `Arc<Mutex>` |
 | 新保留策略 | Largest / Smallest |
 
-### v3 预留空间
+### v3 预计优化
 
 - Workspace 拆分（core / scanner / hasher / reporter / cleaner / cli）
 - ratatui 仪表盘升级
