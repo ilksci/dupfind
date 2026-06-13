@@ -7,8 +7,7 @@ use std::thread;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 
-use super::algorithms::HashAlgorithm;
-use crate::scanner::FileInfo;
+use dupfind_core::{FileInfo, HashAlgorithm};
 
 /// 使用 rayon 并行计算文件哈希（简单模式）
 pub fn hash_files(files: Vec<FileInfo>, algo: &dyn HashAlgorithm) -> Vec<FileInfo> {

@@ -11,47 +11,39 @@
 
 **核心功能：**
 
-- 递归扫描目录，支持过滤规则（大小、扩展名、路径排除）
+- 递归扫描目录，支持过滤规则（大小、扩展名、路径排除、**文件类型**）
 - **三级去重策略**：大小分桶 → 前缀哈希（4 KiB）→ 完整哈希
 - 多算法支持：**BLAKE3**（默认，快速）和 **SHA-256**（密码学安全）
 - 基于 `rayon` 的并行哈希计算，充分利用多核 CPU
-- 交互式 TUI 界面，支持逐组确认删除
+- **tokio 异步 I/O** 可选路径（`--async`）
+- 交互式 **ratatui TUI** 仪表盘，支持逐组确认删除
+- **相似文件检测**：图片感知哈希 + 文本编辑距离（`--similar`）
+- **魔术字节识别**：自动检测文件真实类型，支持 `--type` 过滤
 - **安全删除**：`--dry-run` 预览模式 + `--trash` 回收站支持
 - 导出报告：JSON / CSV / **HTML**（自包含，浏览器可查看）
+- **本地 Web 仪表盘**（`--serve`）— 浏览器查看重复文件报告
 - 终端表格直出（`--table`）
 - 符号链接检测与跳过
 - 配置文件支持（`.dupfind.toml`）
 - 结构化日志（`-v` / `-vv`）
 
-## 🏗️ 项目结构
+## 🏗️ 项目结构（v3 工作区）
 
 ```
 dupfind/
-├── Cargo.toml
+├── Cargo.toml              # 工作区根 + 二进制入口
 ├── README.md
-├── src/
-│   ├── main.rs              # 程序入口
-│   ├── lib.rs               # 顶层调度（五阶段流水线）
-│   ├── cli.rs               # 命令行参数（clap derive）
-│   ├── config.rs            # 配置文件加载（.dupfind.toml）
-│   ├── error.rs             # 统一错误类型（thiserror）
-│   ├── table.rs             # 终端表格输出（tabled）
-│   ├── scanner/
-│   │   ├── mod.rs           # 递归扫描 + 符号链接检测
-│   │   └── filter.rs        # 过滤规则（大小/扩展名/路径）
-│   ├── hasher/
-│   │   ├── mod.rs           # 三级去重策略调度
-│   │   ├── algorithms.rs    # HashAlgorithm trait + SHA256/BLAKE3 实现
-│   │   └── parallel.rs      # rayon 并行 + channel 流水线（演示用）
-│   ├── reporter/
-│   │   ├── mod.rs           # Reporter trait + 格式调度
-│   │   ├── json.rs          # JSON 报告
-│   │   ├── csv.rs           # CSV 报告
-│   │   └── html.rs          # HTML 自包含报告（新增）
-│   └── cleaner/
-│       ├── mod.rs           # 清理策略 + dry-run + trash
-│       └── interactive.rs   # TUI 交互式界面
-└── tests/                   # 集成测试
+├── .github/workflows/ci.yml # CI/CD
+├── benches/                 # criterion 基准测试
+├── tests/                   # 集成测试 + proptest 属性测试
+├── src/                     # 根 package（重导出 + bin）
+└── crates/
+    ├── dupfind-core/        # 核心类型、错误、HashAlgorithm/Reporter trait
+    ├── dupfind-scanner/     # 目录扫描、文件过滤、魔术字节识别
+    ├── dupfind-hasher/      # 三级去重引擎、并行哈希、异步 I/O、相似检测
+    ├── dupfind-reporter/    # JSON / CSV / HTML 报告导出
+    ├── dupfind-cleaner/     # 自动/交互式清理（ratatui 仪表盘）
+    └── dupfind-cli/         # CLI 参数、配置、表格输出、顶层调度、Web 服务器
 ```
 
 ## 🎯 设计说明
@@ -68,7 +60,7 @@ dupfind/
 ### 核心抽象
 
 ```rust
-/// 哈希算法 trait — 便于 v3 扩展更多算法
+/// 哈希算法 trait — v3 可扩展更多算法
 pub trait HashAlgorithm: Send + Sync {
     fn hash(&self, reader: &mut dyn Read) -> io::Result<String>;
     fn name(&self) -> &'static str;
@@ -78,41 +70,26 @@ pub trait HashAlgorithm: Send + Sync {
 pub trait Reporter {
     fn write(&self, groups: &[DuplicateGroup], output: &Path) -> Result<()>;
 }
-
-/// 清理配置
-pub struct CleanOptions {
-    pub dry_run: bool,    // 预览模式
-    pub use_trash: bool,  // 回收站模式
-}
 ```
-
-### v2 新增特性（vs v1）
 
 | 特性 | 说明 |
 |------|------|
-| 三级去重 | 前缀哈希预筛选，减少完整哈希的 IO 开销 |
-| BLAKE3 | 多线程友好，比 SHA-256 快 5-10x |
-| HashAlgorithm trait | 算法可插拔，v3 可加 XXHash/MD5 |
-| dry-run | 安全预览，只显示不删除 |
-| trash | 移入系统回收站，可恢复 |
-| HTML 报告 | 自包含 HTML，浏览器可直接查看 |
-| 终端表格 | `-t` 直接在终端打印结果 |
-| 配置文件 | `.dupfind.toml` 支持 |
-| 日志系统 | `-v`/`-vv` + `RUST_LOG` 环境变量 |
-| 符号链接检测 | 自动跳过并报告 |
-| channel 流水线 | 演示 `thread` + `mpsc` + `Arc<Mutex>` |
-| 新保留策略 | Largest / Smallest |
-
-### v3 预计优化
-
-- Workspace 拆分（core / scanner / hasher / reporter / cleaner / cli）
-- ratatui 仪表盘升级
-- tokio 异步 IO
-- 本地 Web 服务器（`--serve`）
-- 相似文件/图片感知哈希检测
-- 文件类型魔术字节识别
-- CI/CD 配置
-- criterion 基准测试 + proptest 属性测试
+| **三级去重** | 大小分桶 → 前缀哈希（4 KiB）→ 完整哈希，大幅减少无效 I/O |
+| **BLAKE3 / SHA-256** | 可插拔哈希算法，BLAKE3 多线程友好比 SHA-256 快 5-10x |
+| **并行哈希** | 基于 rayon 的并行计算 + tokio 异步 I/O（`--async`） |
+| **ratatui TUI** | 交互式仪表盘，逐组确认删除 |
+| **安全删除** | `--dry-run` 预览 + `--trash` 回收站，双重保护 |
+| **魔术字节识别** | 检测文件真实类型，支持 `--type image,video` 过滤 |
+| **相似文件检测** | `--similar` 图片感知哈希 + 文本编辑距离 |
+| **多格式报告** | JSON / CSV / 自包含 HTML |
+| **Web 仪表盘** | `--serve` 启动本地 Web 服务器，浏览器查看报告 |
+| **终端表格** | `-t` 直接在终端打印结果 |
+| **配置文件** | `.dupfind.toml` 支持，命令行参数互补 |
+| **符号链接** | 自动检测并跳过，防止误操作 |
+| **结构化日志** | `-v` / `-vv` + `RUST_LOG` 环境变量 |
+| **跨平台** | Windows / macOS / Linux 全支持 |
+| **CI/CD** | GitHub Actions 三平台矩阵构建 + 安全审计 |
+| **属性测试** | proptest 验证哈希算法确定性 |
 
 ## 🚀 编译与运行
 
@@ -131,12 +108,17 @@ dupfind --path <目录>            # 扫描目录
         --min-size 1MB           # 最小文件大小过滤
         --ext jpg,png,mp4        # 只扫描指定扩展名
         --exclude node_modules   # 排除路径
+        --type image,video       # 按文件类型过滤（魔术字节识别）
         --hash-algo sha256       # 选择哈希算法（默认 blake3）
+        --async                  # 使用 tokio 异步 I/O 计算哈希
         --output report.json     # 导出报告（支持 json/csv/html）
         --table                  # 终端表格输出
-        --delete interactive     # 交互式删除
+        --delete interactive     # 交互式删除（ratatui 仪表盘）
         --delete keep-newest     # 自动保留最新文件
         --delete keep-largest    # 自动保留最大文件
+        --similar                # 相似文件检测模式
+        --threshold 90           # 相似度阈值（默认 90%）
+        --serve 8080             # 启动 Web 仪表盘（默认端口 8080）
         --dry-run                # 安全预览（不实际删除）
         --trash                  # 移入回收站
         -v                       # 详细日志
@@ -145,10 +127,13 @@ dupfind --path <目录>            # 扫描目录
 ## 🧪 测试
 
 ```bash
-cargo test          # 全部测试（21 个）
-cargo test scanner  # 扫描模块测试
-cargo test hasher   # 哈希模块测试
-cargo test reporter # 报告模块测试
+cargo test --workspace       # 全部测试（31+ 个）
+cargo test -p dupfind-core   # 核心模块测试
+cargo test -p dupfind-scanner # 扫描模块测试
+cargo test -p dupfind-hasher # 哈希 + 相似检测测试
+cargo test -p dupfind-reporter # 报告模块测试
+cargo test -p dupfind-cli    # CLI 参数解析测试
+cargo bench                  # 基准测试（hash + scan）
 ```
 
 ## 📦 主要依赖
@@ -162,12 +147,18 @@ cargo test reporter # 报告模块测试
 | `csv` | CSV 报告 |
 | `walkdir` | 递归目录遍历 |
 | `indicatif` | 进度条 |
-| `crossterm` | 跨平台 TUI |
+| `crossterm` + `ratatui` | 跨平台 TUI 仪表盘 |
 | `thiserror` | 错误类型派生 |
 | `toml` | 配置文件解析 |
 | `log` + `env_logger` | 结构化日志 |
 | `trash` | 系统回收站 |
 | `tabled` | 终端表格 |
+| `infer` | 魔术字节文件类型识别 |
+| `tokio` | 异步 I/O 运行时 |
+| `axum` + `tower-http` | Web 仪表盘服务器 |
+| `image` + `img_hash` | 图片感知哈希相似检测 |
+| `criterion` | 基准测试 |
+| `proptest` | 属性测试 |
 
 ## 📄 License
 

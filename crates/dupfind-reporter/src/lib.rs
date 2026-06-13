@@ -4,8 +4,9 @@ pub mod json;
 
 use std::path::Path;
 
-use crate::error::{DupfindError, Result};
-use crate::hasher::DuplicateGroup;
+use dupfind_core::error::{DupfindError, Result};
+use dupfind_core::DuplicateGroup;
+use dupfind_core::Reporter;
 
 /// 根据输出文件的扩展名调度到对应的报告器
 ///
@@ -25,10 +26,4 @@ pub fn export(groups: &[DuplicateGroup], output: &Path) -> Result<()> {
             "输出文件必须有扩展名（.json / .csv / .html）".into(),
         )),
     }
-}
-
-/// 报告导出 trait
-pub trait Reporter {
-    /// 将重复文件组序列化并写入 output
-    fn write(&self, groups: &[DuplicateGroup], output: &Path) -> Result<()>;
 }

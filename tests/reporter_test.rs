@@ -1,9 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use dupfind::hasher::DuplicateGroup;
 use dupfind::reporter;
-use dupfind::scanner::FileInfo;
+use dupfind::{DuplicateGroup, FileInfo};
 
 #[test]
 fn test_json_report() {

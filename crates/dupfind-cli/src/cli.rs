@@ -3,7 +3,7 @@ use std::result::Result as StdResult;
 
 use clap::{Parser, ValueEnum};
 
-use crate::cleaner::KeepStrategy;
+use dupfind_cleaner::KeepStrategy;
 
 /// 高性能重复文件查找与清理工具
 #[derive(Parser, Debug)]
@@ -57,6 +57,26 @@ pub struct CliArgs {
     /// 配置文件路径（默认为当前目录 .dupfind.toml）
     #[arg(long = "config")]
     pub config: Option<PathBuf>,
+
+    /// 只扫描指定类型的文件，逗号分隔（如 "image,video,audio,document"）
+    #[arg(long = "type", value_delimiter = ',')]
+    pub type_filter: Vec<String>,
+
+    /// 使用 tokio 异步 IO 计算哈希
+    #[arg(long = "async")]
+    pub use_async: bool,
+
+    /// 查找相似文件（而非完全重复）
+    #[arg(long = "similar")]
+    pub find_similar: bool,
+
+    /// 相似度阈值（0-100，默认 90）
+    #[arg(long = "threshold", default_value = "90")]
+    pub threshold: u8,
+
+    /// 启动本地 Web 服务器查看结果（可选端口，默认 8080）
+    #[arg(long = "serve", value_name = "PORT", num_args = 0..=1, default_missing_value = "8080")]
+    pub serve: Option<u16>,
 
     /// 详细输出级别（-v 或 -vv）
     #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]

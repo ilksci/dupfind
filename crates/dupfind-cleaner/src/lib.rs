@@ -3,8 +3,8 @@ pub mod interactive;
 use std::fs;
 use std::time::SystemTime;
 
-use crate::error::{DupfindError, Result};
-use crate::hasher::DuplicateGroup;
+use dupfind_core::error::{DupfindError, Result};
+use dupfind_core::{format_bytes, DuplicateGroup, FileInfo};
 
 /// 文件保留策略
 #[derive(Debug, Clone)]
@@ -127,7 +127,7 @@ fn delete_via_trash(path: &std::path::Path) -> Result<()> {
 }
 
 /// 根据策略选择保留的文件索引
-fn choose_keeper(files: &[crate::scanner::FileInfo], strategy: &KeepStrategy) -> usize {
+fn choose_keeper(files: &[FileInfo], strategy: &KeepStrategy) -> usize {
     match strategy {
         KeepStrategy::Newest => files
             .iter()
@@ -166,22 +166,4 @@ fn choose_keeper(files: &[crate::scanner::FileInfo], strategy: &KeepStrategy) ->
 
         KeepStrategy::Interactive => 0, // 不会走到这里
     }
-}
-
-/// 人类可读的字节表示
-fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[(&str, f64)] = &[
-        ("TB", 1_099_511_627_776.0),
-        ("GB", 1_073_741_824.0),
-        ("MB", 1_048_576.0),
-        ("KB", 1_024.0),
-        ("B", 1.0),
-    ];
-    for (unit, div) in UNITS {
-        let val = bytes as f64 / div;
-        if val >= 1.0 || *unit == "B" {
-            return format!("{:.1} {}", val, unit);
-        }
-    }
-    format!("{bytes} B")
 }

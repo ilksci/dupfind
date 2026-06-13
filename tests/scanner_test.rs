@@ -2,8 +2,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-use dupfind::cli::CliArgs;
-use dupfind::scanner;
+use dupfind::scanner::{self, ScanConfig};
 
 /// 创建临时目录并写入测试文件
 fn setup_temp_dir(files: &[(&str, &[u8])]) -> PathBuf {
@@ -37,22 +36,15 @@ fn test_scan_all_files() {
         ("c.jpg", b"image"),
     ]);
 
-    let args = CliArgs {
+    let config = ScanConfig {
         path: dir.clone(),
         min_size: None,
         extensions: vec![],
-        exclude: vec![],
-        output: None,
-        delete: None,
-        dry_run: false,
-        use_trash: false,
-        table: false,
-        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
-        config: None,
-        verbose: 0,
+        exclude_patterns: vec![],
+        type_filter: vec![],
     };
 
-    let (files, summary) = scanner::scan(&args).unwrap();
+    let (files, summary) = scanner::scan(&config).unwrap();
     assert_eq!(files.len(), 3);
     assert_eq!(summary.total_files, 3);
 
@@ -63,22 +55,15 @@ fn test_scan_all_files() {
 fn test_min_size_filter() {
     let dir = setup_temp_dir(&[("small.txt", b"hi"), ("large.txt", b"hello world")]);
 
-    let args = CliArgs {
+    let config = ScanConfig {
         path: dir.clone(),
         min_size: Some(10),
         extensions: vec![],
-        exclude: vec![],
-        output: None,
-        delete: None,
-        dry_run: false,
-        use_trash: false,
-        table: false,
-        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
-        config: None,
-        verbose: 0,
+        exclude_patterns: vec![],
+        type_filter: vec![],
     };
 
-    let (files, _) = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&config).unwrap();
     assert_eq!(files.len(), 1);
     assert!(files[0].path.ends_with("large.txt"));
 
@@ -93,22 +78,15 @@ fn test_extension_filter() {
         ("graphic.png", b"png-data"),
     ]);
 
-    let args = CliArgs {
+    let config = ScanConfig {
         path: dir.clone(),
         min_size: None,
         extensions: vec!["jpg".into(), "png".into()],
-        exclude: vec![],
-        output: None,
-        delete: None,
-        dry_run: false,
-        use_trash: false,
-        table: false,
-        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
-        config: None,
-        verbose: 0,
+        exclude_patterns: vec![],
+        type_filter: vec![],
     };
 
-    let (files, _) = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&config).unwrap();
     assert_eq!(files.len(), 2);
     let names: Vec<String> = files
         .iter()
@@ -128,22 +106,15 @@ fn test_exclude_filter() {
         ("target/debug/app.exe", b"exe"),
     ]);
 
-    let args = CliArgs {
+    let config = ScanConfig {
         path: dir.clone(),
         min_size: None,
         extensions: vec![],
-        exclude: vec!["node_modules".into(), "target".into()],
-        output: None,
-        delete: None,
-        dry_run: false,
-        use_trash: false,
-        table: false,
-        hash_algo: dupfind::cli::HashAlgoArg::Blake3,
-        config: None,
-        verbose: 0,
+        exclude_patterns: vec!["node_modules".into(), "target".into()],
+        type_filter: vec![],
     };
 
-    let (files, _) = scanner::scan(&args).unwrap();
+    let (files, _) = scanner::scan(&config).unwrap();
     assert_eq!(files.len(), 1);
     assert!(files[0].path.ends_with("main.rs"));
 

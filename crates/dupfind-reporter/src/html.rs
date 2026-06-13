@@ -3,9 +3,8 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::Path;
 
-use crate::error::Result;
-use crate::hasher::DuplicateGroup;
-use crate::reporter::Reporter;
+use dupfind_core::error::Result;
+use dupfind_core::{format_bytes, DuplicateGroup, Reporter};
 
 pub struct HtmlReporter;
 
@@ -79,31 +78,13 @@ code{{background:#f0f0f0;padding:1px 6px;border-radius:3px;font-size:13px}}
 <div class="stat"><div class="num">{wasted}</div><div class="label">可释放空间</div></div>
 </div></div>
 {groups}
-<footer style="text-align:center;color:#aaa;margin-top:30px;font-size:13px">由 dupfind v0.2 生成</footer>
+<footer style="text-align:center;color:#aaa;margin-top:30px;font-size:13px">由 dupfind v0.3 生成</footer>
 </body></html>"#,
         total_groups = groups.len(),
         total_files = total_files,
         wasted = format_bytes(wasted_bytes),
         groups = groups_html,
     )
-}
-
-/// 人类可读的字节表示
-fn format_bytes(bytes: u64) -> String {
-    const UNITS: &[(&str, f64)] = &[
-        ("TB", 1_099_511_627_776.0),
-        ("GB", 1_073_741_824.0),
-        ("MB", 1_048_576.0),
-        ("KB", 1_024.0),
-        ("B", 1.0),
-    ];
-    for (unit, div) in UNITS {
-        let val = bytes as f64 / div;
-        if val >= 1.0 || *unit == "B" {
-            return format!("{:.1} {}", val, unit);
-        }
-    }
-    format!("{bytes} B")
 }
 
 fn escape_html(s: &str) -> String {

@@ -1,0 +1,26 @@
+[package]
+name = "dupfind-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "dupfind 命令行接口与顶层调度"
+
+# 纯 lib crate，二进制由根 package 提供
+
+[dependencies]
+dupfind-core = { path = "../dupfind-core" }
+dupfind-scanner = { path = "../dupfind-scanner" }
+dupfind-hasher = { path = "../dupfind-hasher" }
+dupfind-reporter = { path = "../dupfind-reporter" }
+dupfind-cleaner = { path = "../dupfind-cleaner" }
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+tabled = "0.17"
+log.workspace = true
+env_logger.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }

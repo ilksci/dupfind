@@ -10,11 +10,13 @@ pub struct FilterConfig {
     pub extensions: Vec<String>,
     /// 路径排除模式，路径中包含任一字符串则跳过
     pub exclude_patterns: Vec<String>,
+    /// 文件类型过滤器（如 ["image", "video"]），None 表示不过滤
+    pub type_filter: Option<Vec<String>>,
 }
 
 impl FilterConfig {
     /// 判定文件是否通过所有过滤规则
-    pub fn matches(&self, path: &Path, size: u64) -> bool {
+    pub fn matches(&self, path: &Path, size: u64, detected_type: Option<&str>) -> bool {
         // 大小检查
         if let Some(min) = self.min_size {
             if size < min {
@@ -50,6 +52,20 @@ impl FilterConfig {
             }
         }
 
+        // 文件类型检查
+        if let Some(ref type_filter) = self.type_filter {
+            let matched = match detected_type {
+                Some(dt) => {
+                    let dt_lower = dt.to_lowercase();
+                    type_filter.iter().any(|tf| dt_lower.contains(&tf.to_lowercase()))
+                }
+                None => false,
+            };
+            if !matched {
+                return false;
+            }
+        }
+
         true
     }
 }
@@ -65,8 +81,8 @@ mod tests {
             min_size: Some(100),
             ..Default::default()
         };
-        assert!(cfg.matches(Path::new("a.txt"), 200));
-        assert!(!cfg.matches(Path::new("a.txt"), 50));
+        assert!(cfg.matches(Path::new("a.txt"), 200, None));
+        assert!(!cfg.matches(Path::new("a.txt"), 50, None));
     }
 
     #[test]
@@ -75,10 +91,10 @@ mod tests {
             extensions: vec!["jpg".into(), "png".into()],
             ..Default::default()
         };
-        assert!(cfg.matches(Path::new("photo.jpg"), 100));
-        assert!(cfg.matches(Path::new("img.PNG"), 100));
-        assert!(!cfg.matches(Path::new("doc.txt"), 100));
-        assert!(!cfg.matches(Path::new("noext"), 100));
+        assert!(cfg.matches(Path::new("photo.jpg"), 100, None));
+        assert!(cfg.matches(Path::new("img.PNG"), 100, None));
+        assert!(!cfg.matches(Path::new("doc.txt"), 100, None));
+        assert!(!cfg.matches(Path::new("noext"), 100, None));
     }
 
     #[test]
@@ -89,8 +105,23 @@ mod tests {
         };
         assert!(!cfg.matches(
             PathBuf::from("proj/node_modules/pkg/file.js").as_path(),
-            100
+            100,
+            None
         ));
-        assert!(cfg.matches(Path::new("src/main.rs"), 100));
+        assert!(cfg.matches(Path::new("src/main.rs"), 100, None));
+    }
+
+    #[test]
+    fn test_type_filter() {
+        let cfg = FilterConfig {
+            type_filter: Some(vec!["image".into()]),
+            ..Default::default()
+        };
+        // 模拟 image/jpeg 检测结果
+        assert!(cfg.matches(Path::new("photo.jpg"), 1000, Some("image/jpeg (jpg)")));
+        // 文本文件不会匹配 image 过滤器
+        assert!(!cfg.matches(Path::new("notes.txt"), 100, Some("text/plain (txt)")));
+        // 无法识别的文件不匹配
+        assert!(!cfg.matches(Path::new("unknown.bin"), 100, None));
     }
 }

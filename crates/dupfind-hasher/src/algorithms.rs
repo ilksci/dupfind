@@ -1,15 +1,8 @@
 use sha2::{Digest, Sha256};
 use std::io::{self, Read};
 
-/// 文件哈希算法抽象 trait
-///
-/// v3 可扩展更多算法（如 XXHash、MD5 等）
-pub trait HashAlgorithm: Send + Sync {
-    /// 对 reader 内容计算哈希，返回十六进制字符串
-    fn hash(&self, reader: &mut dyn Read) -> io::Result<String>;
-    /// 算法名称
-    fn name(&self) -> &'static str;
-}
+// 重新导出 trait 以便外部通过 algorithms 模块访问
+pub use dupfind_core::HashAlgorithm;
 
 /// SHA-256 算法
 pub struct Sha256Algo;

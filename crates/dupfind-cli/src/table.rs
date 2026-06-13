@@ -1,6 +1,6 @@
 use tabled::Tabled;
 
-use crate::hasher::DuplicateGroup;
+use dupfind_core::DuplicateGroup;
 
 /// 终端表格行
 #[derive(Tabled)]

@@ -1,25 +1,16 @@
 pub mod algorithms;
+pub mod async_hash;
 pub mod parallel;
+pub mod similar;
 
 use std::collections::HashMap;
 
-use serde::Serialize;
-
-use crate::error::Result;
-use crate::scanner::FileInfo;
-use algorithms::HashAlgorithm;
+use dupfind_core::error::Result;
+use dupfind_core::{FileInfo, HashAlgorithm};
 use parallel::hash_files;
 
-/// 重复文件组
-#[derive(Debug, Clone, Serialize)]
-pub struct DuplicateGroup {
-    /// SHA-256 或 BLAKE3 的十六进制哈希值
-    pub hash: String,
-    /// 每个文件的大小（组内文件大小相同）
-    pub size: u64,
-    /// 重复文件列表（≥ 2 个）
-    pub files: Vec<FileInfo>,
-}
+// 重导出核心类型以保持向后兼容
+pub use dupfind_core::DuplicateGroup;
 
 /// 三级去重策略:
 ///

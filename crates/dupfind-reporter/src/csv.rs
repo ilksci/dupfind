@@ -1,8 +1,7 @@
 use std::path::Path;
 
-use crate::error::Result;
-use crate::hasher::DuplicateGroup;
-use crate::reporter::Reporter;
+use dupfind_core::error::Result;
+use dupfind_core::{DuplicateGroup, Reporter};
 
 pub struct CsvReporter;
 

@@ -1,25 +1,48 @@
-[package]
-name = "dupfind"
-version = "0.2.0"
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.3.0"
 edition = "2021"
-description = "高性能重复文件查找与清理工具，用 Rust 编写"
 license = "MIT"
 authors = ["ilksci"]
+description = "高性能重复文件查找与清理工具，用 Rust 编写"
 
-[dependencies]
-clap = { version = "4", features = ["derive"] }
-rayon = "1"
-sha2 = "0.10"
-blake3 = "1"
+[workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-csv = "1"
-walkdir = "2"
-indicatif = "0.17"
-crossterm = "0.27"
+sha2 = "0.10"
 thiserror = "2"
-toml = "0.8"
+walkdir = "2"
 log = "0.4"
 env_logger = "0.11"
-trash = "5"
-tabled = "0.16"
+
+# ── 根 package（二进制入口 + 集成测试宿主）──
+[package]
+name = "dupfind"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+dupfind-cli = { path = "crates/dupfind-cli" }
+dupfind-core = { path = "crates/dupfind-core" }
+dupfind-scanner = { path = "crates/dupfind-scanner" }
+dupfind-hasher = { path = "crates/dupfind-hasher" }
+dupfind-reporter = { path = "crates/dupfind-reporter" }
+dupfind-cleaner = { path = "crates/dupfind-cleaner" }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1"
+
+[[bench]]
+name = "hash_bench"
+harness = false
+
+[[bench]]
+name = "scan_bench"
+harness = false
