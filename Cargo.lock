@@ -694,6 +694,7 @@ dependencies = [
  "dupfind-reporter",
  "dupfind-scanner",
  "env_logger",
+ "indicatif",
  "log",
  "serde",
  "serde_json",
@@ -746,6 +747,7 @@ name = "dupfind-scanner"
 version = "0.3.0"
 dependencies = [
  "dupfind-core",
+ "indicatif",
  "infer",
  "log",
  "walkdir",

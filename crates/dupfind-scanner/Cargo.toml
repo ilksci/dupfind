@@ -11,3 +11,4 @@ dupfind-core = { path = "../dupfind-core" }
 walkdir.workspace = true
 log.workspace = true
 infer = "0.16"
+indicatif = "0.17"

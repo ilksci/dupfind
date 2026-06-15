@@ -17,6 +17,7 @@ dupfind-cleaner = { path = "../dupfind-cleaner" }
 clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 tabled = "0.17"
+indicatif = "0.17"
 log.workspace = true
 env_logger.workspace = true
 serde.workspace = true

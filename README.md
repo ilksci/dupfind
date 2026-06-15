@@ -27,7 +27,7 @@
 - 配置文件支持（`.dupfind.toml`）
 - 结构化日志（`-v` / `-vv`）
 
-## 🏗️ 项目结构（v3 工作区）
+## 🏗️ 项目结构
 
 ```
 dupfind/
@@ -99,29 +99,205 @@ pub trait Reporter {
 git clone git@github.com:ilksci/dupfind.git
 cd dupfind
 cargo build --release
+```
 
-# 基础用法
-./target/release/dupfind --path ~/Downloads
+> **注意：** 编译成功后 `dupfind` 不会自动加入系统 PATH。可以通过以下方式运行：
+>
+> ```powershell
+> # 方式一：直接指定可执行文件路径
+> .\target\release\dupfind.exe --path D:\03-Documents
+>
+> # 方式二：通过 cargo run（-- 之后的参数传给程序，而非 cargo）
+> cargo run --release -- --path D:\03-Documents
+>
+> # 方式三：安装到系统，之后可在任意位置直接使用 dupfind 命令
+> cargo install --path .
+> ```
 
-# 常用参数
-dupfind --path <目录>            # 扫描目录
+## 📋 使用指南
+
+### 基本扫描
+
+```powershell
+# 扫描指定目录
+dupfind --path D:\03-Documents
+
+# 省略 --path 则扫描当前目录
+dupfind
+```
+
+执行时会显示三阶段进度条：
+
+```
+⠋ 正在扫描目录 [00:02] 已发现 4523 个文件（跳过 128 个）
+扫描完成: 4523 个文件
+  文件类型分布:
+    image/png                     2341
+    text/plain                     892
+    ...
+
+使用 BLAKE3 算法计算哈希...
+前缀哈希筛选 [00:01] [████████████░░░░░░░░░░░░] 2100/3210
+哈希计算 [00:03] [████████████████░░░░░░░░░░░░] 523/856 (62%, 预计 2s)
+
+发现 127 个重复组，共 384 个重复文件，可释放约 2.34 GB。
+```
+
+### 过滤参数
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `-m`, `--min-size` | 忽略小于指定大小的文件，支持 KB/MB/GB | `--min-size 1MB` |
+| `-e`, `--ext` | 只扫描指定扩展名，逗号分隔 | `-e jpg,png,mp4` |
+| `-x`, `--exclude` | 排除路径中包含指定字符串的文件/目录 | `-x node_modules -x .git` |
+| `--type` | 按文件类型过滤（魔术字节识别），逗号分隔 | `--type image,video` |
+
+支持的类型：`image`、`video`、`audio`、`document`、`archive`、`font`、`text` 等。
+
+```powershell
+# 只扫描大于 1MB 的图片
+dupfind --path D:\Photos -m 1MB -e jpg,png
+
+# 扫描文档目录，排除 node_modules 和 .git
+dupfind --path D:\Projects -x node_modules -x .git --type document,image
+
+# 排除系统目录
+dupfind --path D:\03-Documents -x "System Volume Information" -x "$RECYCLE.BIN" -m 10KB
+```
+
+### 导出报告
+
+使用 `-o` / `--output` 导出重复文件报告，格式由扩展名自动选择：
+
+| 格式 | 扩展名 | 说明 |
+|------|--------|------|
+| JSON | `.json` | 结构化数据，适合程序处理 |
+| CSV | `.csv` | 表格数据，适合 Excel 打开 |
+| HTML | `.html` | 可视化报告，浏览器直接查看 |
+
+```powershell
+# JSON 报告
+dupfind --path D:\03-Documents -o report.json
+
+# CSV 报告（Excel 打开）
+dupfind --path D:\03-Documents -o duplicates.csv
+
+# HTML 可视化报告
+dupfind --path D:\03-Documents -o report.html
+
+# 组合过滤 + 导出
+dupfind --path D:\Photos --min-size 100KB --ext jpg,png,gif -o photo_duplicates.html
+dupfind --path D:\Projects -x node_modules -x target -x .git -o project_dupes.json
+dupfind --path D:\Videos --min-size 10MB --type video -o video_dupes.csv
+```
+
+### 终端表格
+
+`-t` / `--table` 直接在终端打印重复文件组表格：
+
+```powershell
+dupfind --path D:\03-Documents --table
+```
+
+```
++-------+--------------+-----------+------------------------------------------+
+| group | hash         | size      | path                                     |
++-------+--------------+-----------+------------------------------------------+
+| 1     | a1b2c3d4e5f6 | 1048576   | D:\Documents\photo.jpg                   |
+| 1     | a1b2c3d4e5f6 | 1048576   | D:\Documents\backup\photo_copy.jpg       |
++-------+--------------+-----------+------------------------------------------+
+```
+
+### 哈希算法
+
+```powershell
+# BLAKE3（默认）：速度快，适合大文件
+dupfind --path D:\03-Documents --hash-algo blake3
+
+# SHA-256：密码学安全，兼容性更好
+dupfind --path D:\03-Documents --hash-algo sha256
+
+# 异步 I/O 路径（tokio）：大量小文件时更快
+dupfind --path D:\03-Documents --async
+```
+
+### 相似文件检测
+
+`--similar` 开启相似文件检测，`--threshold` 设置相似度阈值（0-100，默认 90）：
+
+```powershell
+# 查找相似度 ≥ 85% 的文件
+dupfind --path D:\03-Documents --similar --threshold 85
+
+# 只检测相似图片
+dupfind --path D:\Photos --similar --type image --threshold 90
+```
+
+- **图片**：感知哈希（dHash），视觉相似即分组，无视尺寸/格式差异
+- **文本**：归一化后编辑距离，内容相近即分组
+
+### 配置文件
+
+在目录下创建 `.dupfind.toml`，避免每次输入重复参数：
+
+```toml
+path = "D:\\03-Documents"
+min_size = "1MB"
+extensions = ["jpg", "png", "mp4"]
+exclude = ["node_modules", ".git", "target"]
+hash_algo = "blake3"
+```
+
+CLI 参数会覆盖配置文件中的同名设置。
+
+### 清理重复文件
+
+```powershell
+# 安全预览（不实际删除）
+dupfind --path D:\03-Documents --delete keep-newest --dry-run
+
+# 交互式逐组选择
+dupfind --path D:\03-Documents --delete interactive
+
+# 自动保留最新文件，移入回收站
+dupfind --path D:\03-Documents --delete keep-newest --trash
+
+# 自动保留最大文件
+dupfind --path D:\03-Documents --delete keep-largest
+```
+
+### Web 仪表盘
+
+```powershell
+# 启动 Web 服务器，浏览器查看
+dupfind --path D:\03-Documents --serve
+
+# 指定端口
+dupfind --path D:\03-Documents --serve 3000
+```
+
+### 完整参数列表
+
+```
+dupfind --path <目录>            # 扫描目录（默认 .）
         --min-size 1MB           # 最小文件大小过滤
         --ext jpg,png,mp4        # 只扫描指定扩展名
         --exclude node_modules   # 排除路径
         --type image,video       # 按文件类型过滤（魔术字节识别）
-        --hash-algo sha256       # 选择哈希算法（默认 blake3）
-        --async                  # 使用 tokio 异步 I/O 计算哈希
-        --output report.json     # 导出报告（支持 json/csv/html）
+        --hash-algo sha256       # 哈希算法（blake3 / sha256）
+        --async                  # tokio 异步 I/O 计算哈希
+        --output report.json     # 导出报告（json / csv / html）
         --table                  # 终端表格输出
         --delete interactive     # 交互式删除（ratatui 仪表盘）
         --delete keep-newest     # 自动保留最新文件
         --delete keep-largest    # 自动保留最大文件
         --similar                # 相似文件检测模式
-        --threshold 90           # 相似度阈值（默认 90%）
-        --serve 8080             # 启动 Web 仪表盘（默认端口 8080）
-        --dry-run                # 安全预览（不实际删除）
-        --trash                  # 移入回收站
-        -v                       # 详细日志
+        --threshold 90           # 相似度阈值（默认 90）
+        --serve 8080             # Web 仪表盘（默认 8080）
+        --dry-run                # 安全预览，不实际删除
+        --trash                  # 移入回收站（而非永久删除）
+        --config .dupfind.toml   # 指定配置文件路径
+        -v / -vv                 # 详细日志
 ```
 
 ## 🧪 测试

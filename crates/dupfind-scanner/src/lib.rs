@@ -3,6 +3,7 @@ pub mod filter;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use indicatif::{ProgressBar, ProgressStyle};
 use walkdir::WalkDir;
 
 use dupfind_core::error::Result;
@@ -51,7 +52,19 @@ pub fn scan(config: &ScanConfig) -> Result<(Vec<FileInfo>, ScanSummary)> {
     let mut files: Vec<FileInfo> = Vec::new();
     let mut empty_count = 0usize;
     let mut symlink_count = 0usize;
+    let mut skipped_count = 0u64;
     let mut type_distribution: HashMap<String, usize> = HashMap::new();
+
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} 正在扫描目录 [{elapsed_precise}] 已发现 {pos} 个文件（跳过 {msg} 个）",
+            )
+            .unwrap()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
+    );
+    pb.enable_steady_tick(std::time::Duration::from_millis(80));
 
     for entry in WalkDir::new(&config.path)
         .follow_links(false)
@@ -80,6 +93,7 @@ pub fn scan(config: &ScanConfig) -> Result<(Vec<FileInfo>, ScanSummary)> {
 
         // 只处理普通文件（符号链接不跟进）
         if !file_type.is_file() || is_symlink {
+            skipped_count += 1;
             continue;
         }
 
@@ -110,8 +124,14 @@ pub fn scan(config: &ScanConfig) -> Result<(Vec<FileInfo>, ScanSummary)> {
             );
             file_info.detected_type = detected_type;
             files.push(file_info);
+            pb.set_position(files.len() as u64);
+            pb.set_message(skipped_count.to_string());
+        } else {
+            skipped_count += 1;
         }
     }
+
+    pb.finish_and_clear();
 
     let summary = ScanSummary {
         total_files: files.len(),

@@ -84,13 +84,27 @@ pub fn find_duplicates(
 
 /// 前缀哈希过滤：每个文件只读前 4 KiB 做哈希，碰撞的才进入完整哈希
 fn prefix_hash_filter(files: Vec<FileInfo>) -> Result<Vec<FileInfo>> {
+    use indicatif::{ProgressBar, ProgressStyle};
     use sha2::{Digest, Sha256};
     use std::fs;
     use std::io::Read;
 
+    let total = files.len() as u64;
+
+    let pb = ProgressBar::new(total);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} 前缀哈希筛选 [{elapsed_precise}] [{bar:30.cyan/blue}] {pos}/{len}",
+            )
+            .unwrap()
+            .progress_chars("━╸ "),
+    );
+
     let mut buckets: HashMap<String, Vec<FileInfo>> = HashMap::new();
 
     for mut f in files {
+        pb.inc(1);
         let mut file = match fs::File::open(&f.path) {
             Ok(file) => file,
             Err(_) => continue,
@@ -106,6 +120,8 @@ fn prefix_hash_filter(files: Vec<FileInfo>) -> Result<Vec<FileInfo>> {
             }
         }
     }
+
+    pb.finish_and_clear();
 
     // 丢弃前缀哈希唯一的文件
     Ok(buckets

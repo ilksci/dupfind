@@ -68,9 +68,37 @@ pub fn run() -> dupfind_core::error::Result<()> {
             dupfind_core::DupfindError::Other(format!("无法创建 tokio runtime: {e}"))
         })?;
         rt.block_on(async {
-            let hashed = dupfind_hasher::async_hash::hash_files_async(file_infos, algo.as_ref()).await;
-            // 在异步路径中还需要做 find_duplicates 的后两步（前缀+完整）
-            // 这里简化为直接对异步哈希结果做分组
+            use indicatif::{ProgressBar, ProgressStyle};
+            use std::io;
+
+            let total = file_infos.len() as u64;
+            let pb = ProgressBar::new(total);
+            pb.set_style(
+                ProgressStyle::default_bar()
+                    .template(
+                        "{spinner:.green} 异步哈希计算 [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({per_sec}, 预计 {eta})",
+                    )
+                    .unwrap()
+                    .progress_chars("━╸ "),
+            );
+
+            let mut hashed = Vec::with_capacity(file_infos.len());
+            for mut f in file_infos {
+                pb.inc(1);
+                match tokio::fs::read(&f.path).await {
+                    Ok(data) => {
+                        let mut cursor = io::Cursor::new(&data);
+                        f.hash = algo.hash(&mut cursor).ok();
+                    }
+                    Err(e) => {
+                        log::debug!("异步读取失败 {}: {}", f.path.display(), e);
+                    }
+                }
+                hashed.push(f);
+            }
+            pb.finish_and_clear();
+
+            // 分组
             use std::collections::HashMap;
             let mut hash_buckets: HashMap<String, Vec<dupfind_core::FileInfo>> = HashMap::new();
             for f in hashed {
