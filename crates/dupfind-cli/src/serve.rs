@@ -96,25 +96,26 @@ fn build_dashboard_html(state: &AppState) -> String {
 <title>dupfind v3 — 重复文件仪表盘</title>
 <style>
 *{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh}}
-.header{{background:#16213e;padding:20px 30px;border-bottom:2px solid #0f3460}}
-.header h1{{font-size:24px;color:#e94560}}
-.stats{{display:flex;gap:20px;margin:20px 30px;flex-wrap:wrap}}
-.stat-card{{background:#16213e;padding:16px 24px;border-radius:8px;flex:1;min-width:150px;text-align:center}}
-.stat-card .num{{font-size:32px;font-weight:700;color:#e94560}}
-.stat-card .label{{font-size:13px;color:#888;margin-top:4px}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;color:#333;min-height:100vh}}
+.header{{background:#fff;padding:20px 30px;border-bottom:1px solid #e0e0e0;box-shadow:0 1px 3px rgba(0,0,0,.06)}}
+.header h1{{font-size:24px;color:#1a73e8}}
+.stats{{display:flex;gap:20px;margin:24px 30px;flex-wrap:wrap}}
+.stat-card{{background:#fff;padding:20px 24px;border-radius:8px;flex:1;min-width:150px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
+.stat-card .num{{font-size:32px;font-weight:700;color:#1a73e8}}
+.stat-card .label{{font-size:13px;color:#666;margin-top:4px}}
 .container{{margin:0 30px 30px}}
 .search{{margin-bottom:16px}}
-.search input{{width:100%;padding:10px 16px;border-radius:6px;border:1px solid #0f3460;background:#16213e;color:#e0e0e0;font-size:14px}}
-.group{{background:#16213e;border-radius:8px;padding:16px;margin-bottom:12px;border-left:3px solid #e94560}}
+.search input{{width:100%;padding:10px 16px;border-radius:6px;border:1px solid #ddd;background:#fff;color:#333;font-size:14px;outline:none}}
+.search input:focus{{border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.15)}}
+.group{{background:#fff;border-radius:8px;padding:16px;margin-bottom:12px;border-left:3px solid #1a73e8;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
 .group-header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}}
-.group-header h3{{font-size:16px;color:#e94560}}
+.group-header h3{{font-size:16px;color:#333}}
 .group-header .meta{{font-size:12px;color:#888}}
 .file-list{{list-style:none}}
-.file-list li{{padding:4px 0;font-size:13px;font-family:'Cascadia Code',monospace;word-break:break-all}}
-.hash{{font-size:11px;color:#555;word-break:break-all}}
-.empty{{text-align:center;color:#666;padding:40px;font-size:16px}}
-footer{{text-align:center;color:#555;padding:20px;font-size:12px}}
+.file-list li{{padding:4px 0;font-size:13px;font-family:'Cascadia Code',Consolas,monospace;word-break:break-all;color:#444}}
+.hash{{font-size:11px;color:#999;word-break:break-all}}
+.empty{{text-align:center;color:#999;padding:40px;font-size:16px}}
+footer{{text-align:center;color:#aaa;padding:20px;font-size:12px}}
 </style>
 </head>
 <body>
