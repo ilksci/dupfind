@@ -132,10 +132,7 @@ fn test_exclude_filter() {
             !path_str.contains("node_modules"),
             "排除路径不应出现: {path_str}"
         );
-        assert!(
-            !path_str.contains("target"),
-            "排除路径不应出现: {path_str}"
-        );
+        assert!(!path_str.contains("target"), "排除路径不应出现: {path_str}");
     }
 
     // 验证期望的文件存在
