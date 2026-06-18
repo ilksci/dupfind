@@ -40,14 +40,14 @@ jobs:
       - run: cargo test --workspace --release
 
   # ── MSRV 门禁 ────────────────────────────────────
-  # edition 2024 要求 Rust ≥ 1.85
+  # darling/instability 要求 rustc ≥ 1.88
   msrv:
-    name: MSRV (1.85)
+    name: MSRV (1.88)
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.88
       - run: cargo build --workspace
 
   # ── 安全审计 ────────────────────────────────────
