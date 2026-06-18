@@ -41,12 +41,12 @@ jobs:
 
   # ── MSRV 门禁 ────────────────────────────────────
   msrv:
-    name: MSRV (1.75)
+    name: MSRV (1.80)
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.75
+      - uses: dtolnay/rust-toolchain@1.80
       - run: cargo build --workspace
 
   # ── 安全审计 ────────────────────────────────────
