@@ -5,16 +5,10 @@
 //! - `GET /api/groups` — JSON API 返回重复组
 //! - `GET /api/stats` — 统计摘要
 
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Html,
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, response::Html, routing::get, Json, Router};
 use dupfind_core::DuplicateGroup;
 use tower_http::cors::CorsLayer;
 
@@ -27,7 +21,12 @@ pub struct AppState {
 }
 
 /// 启动 Web 服务器
-pub async fn start_server(groups: Vec<DuplicateGroup>, total_dup_count: usize, wasted_bytes: u64, port: u16) {
+pub async fn start_server(
+    groups: Vec<DuplicateGroup>,
+    total_dup_count: usize,
+    wasted_bytes: u64,
+    port: u16,
+) {
     let state = AppState {
         total_dup_count,
         wasted_bytes,
@@ -71,9 +70,7 @@ async fn groups_handler(
 }
 
 /// API: 返回统计摘要
-async fn stats_handler(
-    State(state): State<Arc<AppState>>,
-) -> Json<serde_json::Value> {
+async fn stats_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
     let wasted_mb = state.wasted_bytes as f64 / 1_048_576.0;
     Json(serde_json::json!({
         "total_groups": state.groups.len(),

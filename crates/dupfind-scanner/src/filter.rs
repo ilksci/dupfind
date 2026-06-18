@@ -57,7 +57,9 @@ impl FilterConfig {
             let matched = match detected_type {
                 Some(dt) => {
                     let dt_lower = dt.to_lowercase();
-                    type_filter.iter().any(|tf| dt_lower.contains(&tf.to_lowercase()))
+                    type_filter
+                        .iter()
+                        .any(|tf| dt_lower.contains(&tf.to_lowercase()))
                 }
                 None => false,
             };

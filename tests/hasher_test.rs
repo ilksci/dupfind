@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use dupfind::hasher;
-use dupfind::hasher::algorithms::{Blake3Algo, HashAlgorithm};
+use dupfind::hasher::algorithms::Blake3Algo;
 use dupfind::FileInfo;
 
 fn setup_temp_files(files: &[(&str, &[u8])]) -> PathBuf {

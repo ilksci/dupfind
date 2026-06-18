@@ -1,0 +1,17 @@
+# Security audit configuration
+# See: https://docs.rs/cargo-audit/latest/cargo_audit/config/index.html
+
+[advisories]
+# RUSTSEC-2023-0080: transpose buffer overflow (CVE)
+#
+# Transitive dependency chain:
+#   dupfind-hasher → img_hash v3.2.0 → rustdct v0.4.0 → rustfft v3.0.1 → transpose v0.1.0
+#
+# img_hash is already at the latest version (3.2.0). It has updated its own
+# transpose dependency to v0.2.3, but the old v0.1.0 is still pulled in
+# through rustdct → rustfft. This cannot be resolved from our side until
+# img_hash releases a new version with updated rustdct/rustfft dependencies.
+#
+# The vulnerable code path (FFT/DCT transforms) is not directly exercised
+# by our usage of img_hash for perceptual image hashing.
+ignore = ["RUSTSEC-2023-0080"]

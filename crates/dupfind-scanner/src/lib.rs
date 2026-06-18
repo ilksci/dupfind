@@ -116,12 +116,7 @@ pub fn scan(config: &ScanConfig) -> Result<(Vec<FileInfo>, ScanSummary)> {
         }
 
         if filter.matches(entry.path(), size, detected_type.as_deref()) {
-            let mut file_info = FileInfo::new(
-                entry.path().to_path_buf(),
-                size,
-                modified,
-                false,
-            );
+            let mut file_info = FileInfo::new(entry.path().to_path_buf(), size, modified, false);
             file_info.detected_type = detected_type;
             files.push(file_info);
             pb.set_position(files.len() as u64);
@@ -159,9 +154,5 @@ fn detect_file_type(path: &std::path::Path) -> Option<String> {
     let mut buf = [0u8; 8192];
     let n = file.read(&mut buf).ok()?;
     let kind = infer::get(&buf[..n])?;
-    Some(format!(
-        "{} ({})",
-        kind.mime_type(),
-        kind.extension()
-    ))
+    Some(format!("{} ({})", kind.mime_type(), kind.extension()))
 }

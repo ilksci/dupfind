@@ -156,16 +156,18 @@ fn render_frame(
             let (prefix, style) = if will_delete {
                 ("[✕] DELETE  ", Style::default().fg(Color::Red))
             } else if is_cursor {
-                ("[ ] ▶ KEEP  ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+                (
+                    "[ ] ▶ KEEP  ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                )
             } else {
                 ("[ ]   KEEP  ", Style::default().fg(Color::DarkGray))
             };
 
             let path_str = file.path.to_string_lossy().to_string();
-            let line = Line::from(vec![
-                Span::styled(prefix, style),
-                Span::raw(path_str),
-            ]);
+            let line = Line::from(vec![Span::styled(prefix, style), Span::raw(path_str)]);
 
             ListItem::new(line)
         })
@@ -177,10 +179,8 @@ fn render_frame(
     f.render_widget(list, chunks[1]);
 
     // 底部帮助
-    let help = Paragraph::new(
-        "[↑/↓] 导航  [Space] 标记删除  [Enter] 确认  [s] 跳过  [q] 退出",
-    )
-    .style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new("[↑/↓] 导航  [Space] 标记删除  [Enter] 确认  [s] 跳过  [q] 退出")
+        .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
 }
 
@@ -230,7 +230,8 @@ fn show_popup(
 
         let x = (area.width.saturating_sub(popup_width)) / 2;
         let y = (area.height.saturating_sub(popup_height)) / 2;
-        let popup_area = ratatui::layout::Rect::new(x, y, popup_width.min(area.width), popup_height);
+        let popup_area =
+            ratatui::layout::Rect::new(x, y, popup_width.min(area.width), popup_height);
 
         // 半透明背景遮罩
         let overlay = Block::default().style(Style::default().bg(Color::Black));

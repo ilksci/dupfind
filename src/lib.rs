@@ -12,5 +12,7 @@ pub use dupfind_reporter as reporter;
 pub use dupfind_scanner as scanner;
 
 // 常用顶层类型重新导出
-pub use dupfind_core::{format_bytes, DupfindError, DuplicateGroup, FileInfo, HashAlgorithm, Reporter, Result};
 pub use dupfind_cleaner::{CleanOptions, KeepStrategy};
+pub use dupfind_core::{
+    format_bytes, DupfindError, DuplicateGroup, FileInfo, HashAlgorithm, Reporter, Result,
+};

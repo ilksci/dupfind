@@ -29,10 +29,7 @@ pub struct SimilarGroup {
 /// - 计算相邻像素梯度差
 /// - 生成 64 位哈希
 /// - 汉明距离 ≤ threshold 视为相似
-pub fn find_similar_images(
-    files: &[FileInfo],
-    threshold: u8,
-) -> Vec<SimilarGroup> {
+pub fn find_similar_images(files: &[FileInfo], threshold: u8) -> Vec<SimilarGroup> {
     let hasher = img_hash::HasherConfig::new()
         .hash_size(8, 8)
         .hash_alg(img_hash::HashAlg::DoubleGradient)
@@ -94,10 +91,7 @@ pub fn find_similar_images(
 /// 1. 归一化文本（去除空白归一化、转小写）
 /// 2. 对相同大小的文件，比较归一化后内容的编辑距离
 /// 3. 相似度 = 1 - (编辑距离 / max(len_a, len_b)) ≥ threshold%
-pub fn find_similar_text(
-    files: &[FileInfo],
-    threshold: u8,
-) -> Vec<SimilarGroup> {
+pub fn find_similar_text(files: &[FileInfo], threshold: u8) -> Vec<SimilarGroup> {
     // 按大小分桶（相差超过 10% 的不可能相似）
     let mut size_buckets: HashMap<u64, Vec<&FileInfo>> = HashMap::new();
     for f in files {
@@ -190,16 +184,20 @@ fn edit_distance(a: &str, b: &str) -> usize {
     let m = b_chars.len();
 
     let mut dp = vec![vec![0usize; m + 1]; n + 1];
-    for i in 0..=n {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate().take(n + 1) {
+        row[0] = i;
     }
-    for j in 0..=m {
-        dp[0][j] = j;
+    for (j, cell) in dp[0].iter_mut().enumerate().take(m + 1) {
+        *cell = j;
     }
 
     for i in 1..=n {
         for j in 1..=m {
-            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                0
+            } else {
+                1
+            };
             dp[i][j] = (dp[i - 1][j] + 1)
                 .min(dp[i][j - 1] + 1)
                 .min(dp[i - 1][j - 1] + cost);

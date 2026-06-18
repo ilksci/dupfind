@@ -211,11 +211,7 @@ fn run_similar_mode(
         println!("  分析 {} 张图片...", images.len());
         let img_groups = dupfind_hasher::similar::find_similar_images(&images, args.threshold);
         for g in &img_groups {
-            println!(
-                "  相似图片组 ({} 文件, {}):",
-                g.files.len(),
-                g.reason
-            );
+            println!("  相似图片组 ({} 文件, {}):", g.files.len(), g.reason);
             for f in &g.files {
                 println!("    {}", f.path.display());
             }
@@ -236,11 +232,7 @@ fn run_similar_mode(
         println!("  分析 {} 个文本文件...", texts.len());
         let text_groups = dupfind_hasher::similar::find_similar_text(&texts, args.threshold);
         for g in &text_groups {
-            println!(
-                "  相似文本组 ({} 文件, {}):",
-                g.files.len(),
-                g.reason
-            );
+            println!("  相似文本组 ({} 文件, {}):", g.files.len(), g.reason);
             for f in &g.files {
                 println!("    {}", f.path.display());
             }
