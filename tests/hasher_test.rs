@@ -8,12 +8,16 @@ use dupfind::hasher::algorithms::Blake3Algo;
 use dupfind::FileInfo;
 
 fn setup_temp_files(files: &[(&str, &[u8])]) -> PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
-        "dupfind_hash_test_{:08x}",
+        "dupfind_hash_test_{:08x}_{:04x}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .subsec_nanos()
+            .subsec_nanos(),
+        seq,
     ));
     fs::create_dir_all(&dir).unwrap();
     for (name, content) in files {

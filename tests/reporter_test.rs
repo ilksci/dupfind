@@ -4,6 +4,17 @@ use std::path::PathBuf;
 use dupfind::reporter;
 use dupfind::{DuplicateGroup, FileInfo};
 
+fn temp_dir(prefix: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .subsec_nanos();
+    std::env::temp_dir().join(format!("dupfind_{}_{:08x}_{:04x}", prefix, nanos, seq))
+}
+
 #[test]
 fn test_json_report() {
     let group = DuplicateGroup {
@@ -15,13 +26,7 @@ fn test_json_report() {
         ],
     };
 
-    let dir = std::env::temp_dir().join(format!(
-        "dupfind_reporter_{:08x}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos()
-    ));
+    let dir = temp_dir("reporter");
     fs::create_dir_all(&dir).unwrap();
 
     let output = dir.join("report.json");
@@ -46,14 +51,7 @@ fn test_csv_report() {
         ],
     };
 
-    let dir = std::env::temp_dir().join(format!(
-        "dupfind_reporter_{:08x}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos()
-            + 1,
-    ));
+    let dir = temp_dir("reporter");
     fs::create_dir_all(&dir).unwrap();
 
     let output = dir.join("report.csv");
@@ -79,14 +77,7 @@ fn test_html_report() {
         ],
     };
 
-    let dir = std::env::temp_dir().join(format!(
-        "dupfind_reporter_{:08x}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos()
-            + 2,
-    ));
+    let dir = temp_dir("reporter");
     fs::create_dir_all(&dir).unwrap();
 
     let output = dir.join("report.html");

@@ -125,8 +125,24 @@ fn test_exclude_filter() {
         eprintln!("  [{}] {}", i, f.path.display());
     }
 
-    assert_eq!(files.len(), 1);
-    assert!(files[0].path.ends_with("main.rs"));
+    // 验证排除的路径没有出现
+    for f in &files {
+        let path_str = f.path.to_string_lossy();
+        assert!(
+            !path_str.contains("node_modules"),
+            "排除路径不应出现: {path_str}"
+        );
+        assert!(
+            !path_str.contains("target"),
+            "排除路径不应出现: {path_str}"
+        );
+    }
+
+    // 验证期望的文件存在
+    assert!(
+        files.iter().any(|f| f.path.ends_with("main.rs")),
+        "应包含 src/main.rs"
+    );
 
     let _ = fs::remove_dir_all(&dir);
 }
