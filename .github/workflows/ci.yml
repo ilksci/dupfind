@@ -41,12 +41,12 @@ jobs:
 
   # ── MSRV 门禁 ────────────────────────────────────
   msrv:
-    name: MSRV (1.80)
+    name: MSRV (1.82)
     needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.80
+      - uses: dtolnay/rust-toolchain@1.82
       - run: cargo build --workspace
 
   # ── 安全审计 ────────────────────────────────────
@@ -55,6 +55,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-audit --locked
+      - run: cargo audit

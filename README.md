@@ -2,7 +2,7 @@
 
 > 高性能重复文件查找与清理工具，用 Rust 编写
 
-[![Rust](https://img.shields.io/badge/rust-1.80%2B-orange)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.82%2B-orange)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ## 📖 简介
@@ -93,7 +93,7 @@ pub trait Reporter {
 
 ## 🚀 编译与运行
 
-**环境要求：** Rust 1.80+
+**环境要求：** Rust 1.82+
 
 ```bash
 git clone git@github.com:ilksci/dupfind.git
