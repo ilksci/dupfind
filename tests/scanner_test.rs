@@ -20,12 +20,15 @@ fn setup_temp_dir(files: &[(&str, &[u8])]) -> PathBuf {
 }
 
 fn uuid() -> String {
+    use std::sync::atomic::{AtomicU32, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .subsec_nanos();
-    format!("{:08x}", nanos)
+    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("{:08x}_{:04x}", nanos, seq)
 }
 
 #[test]
@@ -115,6 +118,13 @@ fn test_exclude_filter() {
     };
 
     let (files, _) = scanner::scan(&config).unwrap();
+
+    // CI 调试：打印扫描到的文件路径
+    eprintln!("DEBUG test_exclude_filter: found {} files:", files.len());
+    for (i, f) in files.iter().enumerate() {
+        eprintln!("  [{}] {}", i, f.path.display());
+    }
+
     assert_eq!(files.len(), 1);
     assert!(files[0].path.ends_with("main.rs"));
 
